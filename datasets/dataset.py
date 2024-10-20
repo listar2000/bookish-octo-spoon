@@ -7,6 +7,9 @@ Base class for a generic dataset class. A dataset in PPI-EB project takes care o
 import numpy as np
 
 class PPIEmpBayesDataset(object):
+    """ 
+    Base class for a generic dataset class. Any dataset should inherit from this class and implement the `load_data` method.
+    """
     def __init__(self, dataset_name: str, verbose: bool = False):
         self.dataset_name = dataset_name
         self.verbose = verbose
@@ -26,6 +29,24 @@ class PPIEmpBayesDataset(object):
         self.Ns: np.ndarray = np.array([x.shape[0] for x in pred_unlabelled])  # number of unlabelled samples for each problem
 
     def load_data(self) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray], list[np.ndarray], np.ndarray]:
+        """ Handle the logic for loading the dataset. This method should be implemented by the subclass.
+
+        Returns:
+            pred_labelled (list[np.ndarray]): \
+                list of predictions for labelled data for each problem.
+
+            y_labelled (list[np.ndarray]): \
+                list of true responses for labelled data for each problem.
+
+            pred_unlabelled (list[np.ndarray]): \ 
+                list of predictions for unlabelled data for each problem.
+            
+            y_unlabelled (list[np.ndarray]): \
+                list of true responses for unlabelled data for each problem.
+
+            true_theta (np.ndarray): \
+                the true theta for each problem.
+        """
         raise NotImplementedError("Subclasses must implement this method")
     
     def validate_data(self, x_labelled: list[np.ndarray], 

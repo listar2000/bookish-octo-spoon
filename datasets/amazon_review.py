@@ -1,8 +1,3 @@
-"""
-Amazon Food Review Dataset
-- raw data: https://www.kaggle.com/datasets/snap/amazon-fine-food-reviews
-- pretrained model: https://huggingface.co/nlptown/bert-base-multilingual-uncased-sentiment
-"""
 from datasets.dataset import PPIEmpBayesDataset
 import numpy as np
 from pathlib import Path
@@ -11,6 +6,11 @@ import h5py
 AMAZON_FOOD_REVIEW_FILE_PATH = Path(__file__).parent / "amazon_review.h5"
 
 class AmazonReviewDataset(PPIEmpBayesDataset):
+    """ 
+    Amazon Food Review Dataset
+    - raw data: https://www.kaggle.com/datasets/snap/amazon-fine-food-reviews
+    - pretrained model: https://huggingface.co/nlptown/bert-base-multilingual-uncased-sentiment
+    """
     def __init__(self, file_path: Path = AMAZON_FOOD_REVIEW_FILE_PATH, verbose: bool = False):
         self.file_path = file_path
         super().__init__("Amazon_review", verbose)
