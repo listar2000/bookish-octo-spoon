@@ -17,7 +17,9 @@ class PPIEmpBayesDataset(object):
         pred_labelled, y_labelled, pred_unlabelled, y_unlabelled, true_theta = self.load_data()
 
         self.validate_data(pred_labelled, y_labelled, pred_unlabelled, y_unlabelled)
-        
+        self.set_metadata(pred_labelled, y_labelled, pred_unlabelled, y_unlabelled, true_theta)
+
+    def set_metadata(self, pred_labelled, y_labelled, pred_unlabelled, y_unlabelled, true_theta):
         self.pred_labelled: list[np.ndarray] = pred_labelled
         self.y_labelled: list[np.ndarray] = y_labelled
         self.pred_unlabelled: list[np.ndarray] = pred_unlabelled

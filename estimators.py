@@ -7,7 +7,6 @@ from datasets.dataset import PPIEmpBayesDataset
 from utils import _minimize_lbfgs
 from typing import Union
 
-
 # Trivial estimators
 def get_mle_estimators(data: PPIEmpBayesDataset) -> np.ndarray:
     """ Obtain the MLE estimator, i.e. the mean response for each problem.
@@ -38,8 +37,10 @@ def _get_generic_ppi_estimators(f_x_tilde: np.ndarray, f_x: np.ndarray, y: np.nd
         ppi: the PPI estimator for each product.
     """
     ppi = []
+    flag = isinstance(lambda_, np.ndarray)
     for i in range(len(f_x_tilde)):
-        ppi_i = f_x_tilde[i].mean() + lambda_ * (y[i].mean() - f_x[i].mean())
+        lbd = lambda_[i] if flag else lambda_
+        ppi_i = f_x_tilde[i].mean() + lbd * (y[i].mean() - f_x[i].mean())
         ppi.append(ppi_i)
     return np.array(ppi)
 
@@ -58,6 +59,9 @@ def get_vanilla_ppi_estimators(data: PPIEmpBayesDataset) -> np.ndarray:
 
     Returns:
         ppi_estimates: the vanilla PPI estimator for each product.
+
+    References:
+        [1] A. N. Angelopoulos, J. C. Duchi, and T. Zrnic, “PPI++: Efficient Prediction-Powered Inference”.
     """
     return _get_generic_ppi_estimators(data.pred_unlabelled, data.pred_labelled, data.y_labelled, 1.0)
 
@@ -85,6 +89,9 @@ def get_power_tuned_ppi_estimators(data: PPIEmpBayesDataset, get_lambdas: bool =
     Returns:
         ppi_estimates: the power-tuned PPI estimator for each product. If `get_lambdas` is `True`, the power-tuning parameters will \
         also be returned.
+
+    References:
+        [1] A. N. Angelopoulos, J. C. Duchi, and T. Zrnic, “PPI++: Efficient Prediction-Powered Inference”.
     """
     lambdas = []
     for i in range(data.M):
@@ -162,3 +169,21 @@ def get_eb_sure_estimators(data: PPIEmpBayesDataset, get_lambdas: bool = False, 
     sure_estimates = lambdas * y_bar + (1 - lambdas) * f_x_tilde_bar
 
     return sure_estimates if not get_lambdas else (sure_estimates, lambdas)
+
+
+def get_shrink_var_ppi_estimators(data: PPIEmpBayesDataset):
+    """
+    TODO: implement this~
+    """
+    raise NotImplementedError("This function is not implemented yet.")
+
+
+# Aliases for the estimators
+ALL_ESTIMATORS = {
+    "mle": get_mle_estimators,
+    "pred_mean": get_pred_mean_estimators,
+    "vanilla_ppi": get_vanilla_ppi_estimators,
+    "power_tuned_ppi": get_power_tuned_ppi_estimators,
+    "eb_sure": get_eb_sure_estimators,
+    # "shrink_var_ppi": get_shrink_var_ppi_estimators
+}
