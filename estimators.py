@@ -31,7 +31,7 @@ def _get_generic_ppi_estimators(f_x_tilde: np.ndarray, f_x: np.ndarray, y: np.nd
 
         y (np.ndarray): the mean response (MLE) of the labelled data for each product.
 
-        lambda\_ (Union[float, np.ndarray]): the power-tuning parameter λ_i for each product.
+        lambda (Union[float, np.ndarray]): the power-tuning parameter λ_i for each product.
 
     Returns:
         ppi: the PPI estimator for each product.
