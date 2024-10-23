@@ -15,7 +15,7 @@ def benchmark_amazon_review(trials: int = 100, summary: bool = True) -> pd.DataF
 
     for i in tqdm(range(trials)):
         # randomize the dataset (train-test split)
-        data.reload_data(split_seed=i + 42)
+        data.reload_data(split_seed=i + 12345)
         true_theta = data.true_theta
 
         for estimator_name, estimator_func in ALL_ESTIMATORS.items():

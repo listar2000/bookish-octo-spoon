@@ -40,7 +40,7 @@ def _get_generic_ppi_estimators(f_x_tilde: np.ndarray, f_x: np.ndarray, y: np.nd
     flag = isinstance(lambda_, np.ndarray)
     for i in range(len(f_x_tilde)):
         lbd = lambda_[i] if flag else lambda_
-        ppi_i = f_x_tilde[i].mean() + lbd * (y[i].mean() - f_x[i].mean())
+        ppi_i = y[i].mean() + lbd * (f_x_tilde[i].mean() - f_x[i].mean())
         ppi.append(ppi_i)
     return np.array(ppi)
 
@@ -96,8 +96,8 @@ def get_power_tuned_ppi_estimators(data: PPIEmpBayesDataset, get_lambdas: bool =
     lambdas = []
     for i in range(data.M):
         n, N = data.ns[i], data.Ns[i]
-        var_bar = np.concatenate([data.pred_labelled[i], data.pred_unlabelled[i]]).var()
-        cov_bar = np.cov(data.pred_labelled[i], data.y_labelled[i])[0, 1]
+        var_bar = np.concatenate([data.pred_labelled[i], data.pred_unlabelled[i]]).var(ddof=1)
+        cov_bar = np.cov(data.pred_labelled[i], data.y_labelled[i], ddof=1)[0, 1]
         # compute the lambda for each problem
         lambda_i = (N / (n + N)) * cov_bar / var_bar
         lambda_i = np.clip(lambda_i, 0, 1)
@@ -145,13 +145,16 @@ def get_eb_sure_estimators(data: PPIEmpBayesDataset, get_lambdas: bool = False, 
     var_y, f_x_tilde_bar, y_bar = [], [], []
     for i in range(data.M):
         n = data.ns[i]
+        # N = data.Ns[i]
         if hetero_var_y:
-            var_y.append(data.pred_labelled[i].var() / n)
+            # var_y.append(data.pred_labelled[i].var(ddof=1) / N)
+            var_y.append(data.y_labelled[i].var(ddof=1) / n)
         f_x_tilde_bar.append(data.pred_unlabelled[i].mean())
         y_bar.append(data.y_labelled[i].mean())
 
     if not hetero_var_y:
-        var_y = np.concatenate(data.pred_labelled).var()
+        # var_y = np.concatenate(data.pred_labelled).var(ddof=1)
+        var_y = np.concatenate(data.y_labelled).var(ddof=1)
         var_y = var_y / data.ns
 
     f_x_tilde_bar, y_bar, var_y = np.array(f_x_tilde_bar), np.array(y_bar), np.array(var_y)
@@ -171,19 +174,73 @@ def get_eb_sure_estimators(data: PPIEmpBayesDataset, get_lambdas: bool = False, 
     return sure_estimates if not get_lambdas else (sure_estimates, lambdas)
 
 
-def get_shrink_var_ppi_estimators(data: PPIEmpBayesDataset):
+def get_shrink_var_ppi_estimators(data: PPIEmpBayesDataset, get_lambdas: bool = False):
+    """ Obtain the shrinkage variance PPI estimator for the PPI problem.
+
+    This estimator is very similar to the `power-tuned PPI` estimator, with the difference that we estimate the sample variance differently.
+    The power-tuning parameter λ_i for the i^th problem is now given by:
+
+    λ_i = (N_i / (n_i + N_i)) * Cov(Y_i, f(X_i)) / V^*_i
+
+    V^*_i = λ_v * V_m + (1 - λ_v) * Var(f(X_i))
+
+    and V_m is the median of the vector V = (SV(f(X_1))), ..., (SV(f(X_M))), where SV(f(X_1)) denotes the sample variance of the prediction for the i^th problem.
+    The variance shrinkage parameter λ_v is estimated by:
+
+    λ_v = min(1, sum(SV2_i) / sum( (SV(f(X_i)) - V_m) ** 2 )
+
+    where SV2_i is the `sample variance` of the `sample variance` of the prediction for the i^th problem. See [1] for more details.
+
+    Args:
+        data (PPIEmpBayesDataset): the dataset object.
+        get_lambdas (bool): whether to return the power-tuning parameter λ_i after variance shrinkage. Default to `False`.
+
+    Returns:
+        shrink_var_ppi_estimates: the shrinkage variance PPI estimator for each product. If `get_lambdas` is `True`, the power-tuning parameters will \
+        also be returned. Default to `False`.
+
+    References:
+        [1] R. Opgen-Rhein and K. Strimmer, “Accurate Ranking of Differentially Expressed Genes by a Distribution-Free Shrinkage Approach”.
     """
-    TODO: implement this~
-    """
-    raise NotImplementedError("This function is not implemented yet.")
+    # precedure of estimating the shrinkage variance parameter λ_v
+    cov_bar = []
+    # unbiased sample variance and sample variance of the sample variance
+    sv, sv2 = [], []
+    for i in range(data.M):
+        N = data.Ns[i]
+        all_pred = np.concatenate([data.pred_labelled[i], data.pred_unlabelled[i]])
+        
+        bar_f_x = all_pred.mean()
+        ws = (all_pred - bar_f_x) ** 2
+        bar_ws = ws.mean()
+
+        sv.append( (N / (N - 1)) * bar_ws )
+        sv2.append( N / (N - 1) ** 3 * np.sum((ws - bar_ws) ** 2) )
+
+        cov_bar.append(np.cov(data.pred_labelled[i], data.y_labelled[i], ddof=1)[0, 1])
+    
+    # calculate the optimal λ_v
+    sv, sv2 = np.array(sv), np.array(sv2)
+    v_m = np.median(sv)
+    lambda_v = np.sum(sv2) / np.sum((sv - v_m) ** 2)
+    lambda_v = min(1, lambda_v)
+
+    # calculate the individual λ_i from λ_v
+    N, n = np.array(data.Ns), np.array(data.ns)
+    lambdas = (N / (n + N)) * np.array(cov_bar) / (lambda_v * v_m + (1 - lambda_v) * sv)
+    lambdas = np.clip(lambdas, 0, 1)
+
+    shrink_var_ppi_estimates = _get_generic_ppi_estimators(data.pred_unlabelled, data.pred_labelled, data.y_labelled, lambdas)
+
+    return shrink_var_ppi_estimates if not get_lambdas else (shrink_var_ppi_estimates, lambdas)
 
 
 # Aliases for the estimators
 ALL_ESTIMATORS = {
     "mle": get_mle_estimators,
-    "pred_mean": get_pred_mean_estimators,
+    # "pred_mean": get_pred_mean_estimators,
     "vanilla_ppi": get_vanilla_ppi_estimators,
     "power_tuned_ppi": get_power_tuned_ppi_estimators,
     "eb_sure": get_eb_sure_estimators,
-    # "shrink_var_ppi": get_shrink_var_ppi_estimators
+    "shrink_var_ppi": get_shrink_var_ppi_estimators
 }

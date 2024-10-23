@@ -58,3 +58,6 @@ cover/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# temporary (disable images)
+*.png
