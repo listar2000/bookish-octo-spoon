@@ -235,6 +235,36 @@ def get_shrink_var_ppi_estimators(data: PPIEmpBayesDataset, get_lambdas: bool = 
     return shrink_var_ppi_estimates if not get_lambdas else (shrink_var_ppi_estimates, lambdas)
 
 
+def get_compound_ppi_estimators(data: PPIEmpBayesDataset, get_lambda: bool = False):
+    """ Obtain the compound PPI estimator for the PPI problem.
+
+    TODO: add the description of the compound PPI estimator.
+
+    Args:
+        data (PPIEmpBayesDataset): the dataset object.
+
+        get_lambda (bool): whether to return the power-tuning parameter λ_i. Default to `False`.
+    
+    Returns:
+        ppi_estimates: the compound PPI estimator for each product. If `get_lambda` is `True`, the power-tuning parameters will \
+        also be returned.
+    """
+    # step 1: aggregate the sum of covariance and variance terms
+    numerator, denominator = 0, 0
+    for i in range(data.M):
+        n, N = data.ns[i], data.Ns[i]
+        var_bar = np.concatenate([data.pred_labelled[i], data.pred_unlabelled[i]]).var(ddof=1)
+        cov_bar = np.cov(data.pred_labelled[i], data.y_labelled[i], ddof=1)[0, 1]
+        # compute the lambda for each problem
+        numerator += cov_bar / n
+        denominator += var_bar * ((N + n) / N * n)
+
+    lambda_ = numerator / denominator
+    ppi_estimates = _get_generic_ppi_estimators(data.pred_unlabelled, data.pred_labelled, data.y_labelled, lambda_)
+    return ppi_estimates if not get_lambda else (ppi_estimates, lambda_)
+
+
+
 # Aliases for the estimators
 ALL_ESTIMATORS = {
     "mle": get_mle_estimators,
@@ -242,5 +272,6 @@ ALL_ESTIMATORS = {
     "vanilla_ppi": get_vanilla_ppi_estimators,
     "power_tuned_ppi": get_power_tuned_ppi_estimators,
     "eb_sure": get_eb_sure_estimators,
-    "shrink_var_ppi": get_shrink_var_ppi_estimators
+    "shrink_var_ppi": get_shrink_var_ppi_estimators,
+    "compound_ppi": get_compound_ppi_estimators
 }
