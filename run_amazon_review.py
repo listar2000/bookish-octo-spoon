@@ -1,17 +1,17 @@
 """
 Experiment with Amazon Review dataset
 """
-from datasets.amazon_review import AmazonReviewDataset
+from datasets.amazon_review import AmazonReviewDataset, AMAZON_FOOD_REVIEW_FILE_PATH
 from estimators import ALL_ESTIMATORS
 from utils import get_mse
 from tqdm import tqdm # for progress bar
 import pandas as pd
 
-def benchmark_amazon_review(trials: int = 100, summary: bool = True) -> pd.DataFrame:
+def benchmark_amazon_review(trials: int = 100, summary: bool = True, file_path: str = AMAZON_FOOD_REVIEW_FILE_PATH) -> pd.DataFrame:
     """ Benchmark the Amazon Review dataset.
     """
     mse_results = pd.DataFrame(columns=ALL_ESTIMATORS.keys())
-    data = AmazonReviewDataset(split_seed=42)
+    data = AmazonReviewDataset(file_path=file_path)
 
     for i in tqdm(range(trials)):
         # randomize the dataset (train-test split)
@@ -45,5 +45,7 @@ def visualize_benchmark_amazon_review(mse_results: pd.DataFrame):
 
 
 if __name__ == "__main__":
-    mse_results = benchmark_amazon_review(trials=100, summary=True)
+    from pathlib import Path
+    bad_review_path = Path('/net/scratch2/listar2000/kaggle-amazon-review/src/datasets/amazon_review_bad.h5')
+    mse_results = benchmark_amazon_review(trials=500, summary=True, file_path=bad_review_path)
     visualize_benchmark_amazon_review(mse_results)

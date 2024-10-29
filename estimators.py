@@ -17,7 +17,7 @@ def get_mle_estimators(data: PPIEmpBayesDataset) -> np.ndarray:
 def get_pred_mean_estimators(data: PPIEmpBayesDataset) -> np.ndarray:
     """ Obtain the prediction mean estimator for each problem.
     """
-    return np.array([pred.mean() for pred in data.pred_labelled])
+    return np.array([pred.mean() for pred in data.pred_unlabelled])
 
 
 # PPI estimators
@@ -257,12 +257,29 @@ def get_compound_ppi_estimators(data: PPIEmpBayesDataset, get_lambda: bool = Fal
         cov_bar = np.cov(data.pred_labelled[i], data.y_labelled[i], ddof=1)[0, 1]
         # compute the lambda for each problem
         numerator += cov_bar / n
-        denominator += var_bar * ((N + n) / N * n)
+        denominator += var_bar * ((N + n) / (N * n))
 
     lambda_ = numerator / denominator
     ppi_estimates = _get_generic_ppi_estimators(data.pred_unlabelled, data.pred_labelled, data.y_labelled, lambda_)
     return ppi_estimates if not get_lambda else (ppi_estimates, lambda_)
 
+
+def get_mixed_compound_pt_ppi_estimators(data: PPIEmpBayesDataset, get_w: bool = False):
+    """ TODO: add the description of the mixed compound-pt PPI estimator.
+    """
+    compound_ppi_estimates, lambda_cp = get_compound_ppi_estimators(data, get_lambda=True)
+    pt_ppi_estimates, lambda_pt = get_power_tuned_ppi_estimators(data, get_lambdas=True)
+
+    bias_square = np.array([(y.mean() - pred.mean()) ** 2 for y, pred in \
+                            zip(data.y_labelled, data.pred_labelled)])
+
+    w_numerator = np.sum((lambda_cp * (lambda_cp - lambda_pt)) * bias_square)
+    w_denominator = np.sum((lambda_cp - lambda_pt) ** 2 * bias_square)
+    w = w_numerator / w_denominator
+    w = np.clip(w, 0, 1)
+
+    mixed_ppi_estimates = w * pt_ppi_estimates + (1 - w) * compound_ppi_estimates
+    return mixed_ppi_estimates if not get_w else (mixed_ppi_estimates, w)
 
 
 # Aliases for the estimators
@@ -273,5 +290,6 @@ ALL_ESTIMATORS = {
     "power_tuned_ppi": get_power_tuned_ppi_estimators,
     "eb_sure": get_eb_sure_estimators,
     "shrink_var_ppi": get_shrink_var_ppi_estimators,
-    "compound_ppi": get_compound_ppi_estimators
+    "compound_ppi": get_compound_ppi_estimators,
+    "mixed_compound_pt_ppi": get_mixed_compound_pt_ppi_estimators
 }
